@@ -1,8 +1,9 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
-from pymongo import MongoClient
+from db import db
 from dotenv import load_dotenv
+from routes.auth import auth_bp
 import os
 
 # Load environment variables from .env
@@ -16,14 +17,11 @@ CORS(app, supports_credentials=True)
 
 # App configuration
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
+app.register_blueprint(auth_bp)
 
 # Initialize JWT
 jwt = JWTManager(app)
 
-# MongoDB connection
-mongo_uri = os.environ.get('MONGO_URI')
-mongo_client = MongoClient(mongo_uri)
-db = mongo_client["movie_rater"]
 
 
 # Example test route
