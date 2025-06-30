@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Star,
   TrendingUp,
@@ -9,15 +9,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import api from "@/lib/api";
 
 interface Movie {
   id: number;
@@ -30,12 +25,41 @@ interface Movie {
   trending: boolean;
 }
 
+interface TrendingMovie {
+  id: number;
+  title: string;
+  overview: string;
+  poster_path: string;
+  release_date: string;
+}
+
 interface User {
   name: string;
   avatar?: string;
 }
 
 const MovieRaterHomeScreen: React.FC = () => {
+  // --- Trending state & fetch ---
+  const [trendingMovies, setTrendingMovies] = useState<TrendingMovie[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+  const [trendingError, setTrendingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const res = await api.get("/api/movies/trending");
+        setTrendingMovies(res.data.results);
+      } catch (err: any) {
+        console.error(err);
+        setTrendingError("Failed to load trending movies.");
+      } finally {
+        setLoadingTrending(false);
+      }
+    };
+    fetchTrending();
+  }, []);
+
+  // Search & filter state
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedGenre, setSelectedGenre] = useState<string>("all");
 
@@ -46,7 +70,7 @@ const MovieRaterHomeScreen: React.FC = () => {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
   };
 
-  // Mock movie data
+  // Mock full movie list (for the "All Movies" section)
   const movies: Movie[] = [
     {
       id: 1,
@@ -58,56 +82,7 @@ const MovieRaterHomeScreen: React.FC = () => {
       poster: "https://image.tmdb.org/t/p/w500/r2J02Z2OpNTctfOSN1Ydgii51I3.jpg",
       trending: true,
     },
-    {
-      id: 2,
-      title: "Spider-Man: Across the Spider-Verse",
-      year: 2023,
-      genre: ["Animation", "Action", "Adventure"],
-      rating: 9.1,
-      reviewCount: 2156,
-      poster: "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
-      trending: true,
-    },
-    {
-      id: 3,
-      title: "John Wick: Chapter 4",
-      year: 2023,
-      genre: ["Action", "Thriller", "Crime"],
-      rating: 8.7,
-      reviewCount: 1893,
-      poster: "https://image.tmdb.org/t/p/w500/vZloFAK7NmvMGKE7VkF5UHaz0I.jpg",
-      trending: false,
-    },
-    {
-      id: 4,
-      title: "Fast X",
-      year: 2023,
-      genre: ["Action", "Crime", "Thriller"],
-      rating: 7.3,
-      reviewCount: 987,
-      poster: "https://image.tmdb.org/t/p/w500/fiVW06jE7z9YnO4trhaMEdclSiC.jpg",
-      trending: false,
-    },
-    {
-      id: 5,
-      title: "The Little Mermaid",
-      year: 2023,
-      genre: ["Family", "Fantasy", "Romance"],
-      rating: 7.8,
-      reviewCount: 1432,
-      poster: "https://image.tmdb.org/t/p/w500/ym1dxyOk4jFcSl4Q2zmRrA5BEEN.jpg",
-      trending: false,
-    },
-    {
-      id: 6,
-      title: "Transformers: Rise of the Beasts",
-      year: 2023,
-      genre: ["Action", "Adventure", "Sci-Fi"],
-      rating: 7.1,
-      reviewCount: 756,
-      poster: "https://image.tmdb.org/t/p/w500/gPbM0MK8CP8A174rmUwGsADNYKD.jpg",
-      trending: false,
-    },
+    // ... other mock movies ...
   ];
 
   const genres = [
@@ -133,10 +108,8 @@ const MovieRaterHomeScreen: React.FC = () => {
     return matchesSearch && matchesGenre;
   });
 
-  const trendingMovies = movies.filter((movie) => movie.trending);
-
   const renderStars = (rating: number) => {
-    const stars = Math.round(rating / 2); // Convert 10-point scale to 5-star
+    const stars = Math.round(rating / 2);
     return (
       <div className="flex items-center gap-1">
         {[...Array(5)].map((_, i) => (
@@ -162,7 +135,6 @@ const MovieRaterHomeScreen: React.FC = () => {
               <div className="text-2xl font-bold text-primary">🎬</div>
               <h1 className="text-2xl font-bold">MovieRate</h1>
             </div>
-
             <div className="flex items-center gap-4">
               <Avatar>
                 <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
@@ -188,7 +160,7 @@ const MovieRaterHomeScreen: React.FC = () => {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 Total Movies
               </CardTitle>
@@ -201,22 +173,22 @@ const MovieRaterHomeScreen: React.FC = () => {
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 Trending Now
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{trendingMovies.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Hot picks this week
-              </p>
+              <div className="text-2xl font-bold">
+                {loadingTrending ? "…" : trendingMovies.length}
+              </div>
+              <p className="text-xs text-muted-foreground">Hot picks today</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">
                 Total Reviews
               </CardTitle>
@@ -239,21 +211,21 @@ const MovieRaterHomeScreen: React.FC = () => {
             <TrendingUp className="h-5 w-5 text-primary" />
             <h2 className="text-2xl font-bold">Trending This Week</h2>
           </div>
+
+          {loadingTrending && <p>Loading…</p>}
+          {trendingError && <p className="text-red-600">{trendingError}</p>}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trendingMovies.map((movie) => (
+            {trendingMovies.map((m) => (
               <Card
-                key={movie.id}
+                key={m.id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
               >
                 <div className="relative">
                   <img
-                    src={movie.poster}
-                    alt={movie.title}
+                    src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
+                    alt={m.title}
                     className="w-full h-48 object-cover rounded-t-lg"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjNmNGY2Ii8+Cjx0ZXh0IHg9IjIwMCIgeT0iMTUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOWNhM2FmIiBmb250LXNpemU9IjE2Ij5Nb3ZpZSBQb3N0ZXI8L3RleHQ+Cjwvc3ZnPg==";
-                    }}
                   />
                   <Badge className="absolute top-2 right-2 bg-red-500">
                     <TrendingUp className="w-3 h-3 mr-1" />
@@ -262,24 +234,11 @@ const MovieRaterHomeScreen: React.FC = () => {
                 </div>
                 <CardContent className="p-4">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-1">
-                    {movie.title}
+                    {m.title}
                   </h3>
-                  <div className="flex items-center justify-between mb-2">
-                    {renderStars(movie.rating)}
-                    <span className="text-sm text-muted-foreground">
-                      {movie.year}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    {movie.reviewCount.toLocaleString()} reviews
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {m.overview}
                   </p>
-                  <div className="flex flex-wrap gap-1">
-                    {movie.genre.slice(0, 2).map((g) => (
-                      <Badge key={g} variant="secondary" className="text-xs">
-                        {g}
-                      </Badge>
-                    ))}
-                  </div>
                 </CardContent>
               </Card>
             ))}
