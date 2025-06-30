@@ -2,9 +2,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 
 export default function AuthPage() {
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,7 +17,7 @@ export default function AuthPage() {
     e.preventDefault();
     setMessage("");
 
-    // On signup, enforce matching passwords
+    // --- validate signup passwords ---
     if (!isLogin && password !== confirmPassword) {
       setMessage("Passwords do not match.");
       return;
@@ -23,13 +25,24 @@ export default function AuthPage() {
 
     try {
       const url = isLogin ? "/login" : "/signup";
-      await api.post(url, { email, password });
+      const res = await api.post(url, { email, password });
+      const data = res.data;
 
-      setMessage(
-        isLogin ? "Logged in successfully!" : "Account created successfully!"
-      );
+      if (isLogin) {
+        // ——— LOGIN FLOW ———
+        // save the token
+        localStorage.setItem("token", data.token);
+        setMessage("Logged in successfully!");
+        // go to your homescreen
+        navigate("/homescreen");
+      } else {
+        // ——— SIGNUP FLOW ———
+        setMessage("Account created! Please log in.");
+        // flip into login mode
+        setIsLogin(true);
+      }
 
-      // clear fields
+      // common cleanup
       setEmail("");
       setPassword("");
       setConfirmPassword("");
@@ -44,7 +57,6 @@ export default function AuthPage() {
   const toggleMode = () => {
     setIsLogin(!isLogin);
     setMessage("");
-    // optional: clear fields on switch
     setPassword("");
     setConfirmPassword("");
   };
@@ -83,7 +95,6 @@ export default function AuthPage() {
           />
         </div>
 
-        {/* only show confirm on signup */}
         {!isLogin && (
           <div className="mb-4">
             <Label htmlFor="confirmPassword">Confirm Password</Label>
