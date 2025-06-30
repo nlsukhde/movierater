@@ -2,13 +2,12 @@
 
 import os
 import requests
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 tmdb_bp = Blueprint("tmdb", __name__)
 
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
-TMDB_API_KEY   = os.getenv("API_KEY")        # your v3 key
-# (you can keep TMDB_READ_ACCESS_TOKEN around if you need v4 calls later)
+TMDB_API_KEY   = os.getenv("API_KEY") 
 
 @tmdb_bp.route("/trending", methods=["GET"])
 def get_trending():
@@ -18,7 +17,7 @@ def get_trending():
     url = f"{TMDB_BASE_URL}/trending/movie/day"
     params = {
         "language": "en-US",
-        "api_key": TMDB_API_KEY,       # ← pass your key here
+        "api_key": TMDB_API_KEY,     
     }
 
     resp = requests.get(url, params=params)
@@ -44,3 +43,51 @@ def get_trending():
         for m in top10
     ]
     return jsonify({ "results": movies })
+
+
+@tmdb_bp.route("/search", methods=["GET"])
+def search_movies():
+    if not TMDB_API_KEY:
+        return jsonify({"error": "TMDB_API_KEY not set"}), 500
+
+    # required
+    query = request.args.get("query")
+    if not query:
+        return jsonify({"error": "Missing required query parameter 'query'"}), 400
+
+    # optional params with defaults
+    include_adult = request.args.get("include_adult", "false")
+    language = request.args.get("language", "en-US")
+    page = request.args.get("page", 1, type=int)
+
+    url = f"{TMDB_BASE_URL}/search/movie"
+    params = {
+        "api_key":       TMDB_API_KEY,
+        "query":         query,
+        "include_adult": include_adult,
+        "language":      language,
+        "page":          page,
+    }
+
+    resp = requests.get(url, params=params)
+    try:
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError:
+        return jsonify({
+            "error": "TMDB search request failed",
+            "status": resp.status_code,
+            "detail": resp.text
+        }), resp.status_code
+
+    data = resp.json()
+    results = [
+        {
+            "id":           m["id"],
+            "title":        m["title"],
+            "overview":     m.get("overview"),
+            "poster_path":  m.get("poster_path"),
+            "release_date": m.get("release_date"),
+        }
+        for m in data.get("results", [])
+    ]
+    return jsonify({"results": results})
