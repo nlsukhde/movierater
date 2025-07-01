@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 
 // your new components
-import { StatsCards } from "./StatsCards";
-import { TrendingSection } from "./TrendingSection";
-import type { TrendingMovie } from "./TrendingSection";
-import { SearchBar } from "./SearchBar";
-import { MovieGrid } from "./MovieGrid";
+import { StatsCards } from "../components/StatsCards";
+import { TrendingSection } from "../components/TrendingSection";
+import type { TrendingMovie } from "../components/TrendingSection";
+import { SearchBar } from "../components/SearchBar";
+import { MovieGrid } from "../components/MovieGrid";
 
 // any UI imports you still need
 import { Card, CardContent } from "@/components/ui/card";

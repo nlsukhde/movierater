@@ -91,3 +91,53 @@ def search_movies():
         for m in data.get("results", [])
     ]
     return jsonify({"results": results})
+
+@tmdb_bp.route("/<int:movie_id>", methods=["GET"])
+def get_movie_details(movie_id):
+    if not TMDB_API_KEY:
+        return jsonify({"error": "TMDB_API_KEY not set"}), 500
+
+    # Fetch movie + credits in one call
+    url = f"{TMDB_BASE_URL}/movie/{movie_id}"
+    params = {
+        "api_key":            TMDB_API_KEY,
+        "language":           "en-US",
+        "append_to_response": "credits"
+    }
+
+    resp = requests.get(url, params=params)
+    try:
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError:
+        return jsonify({
+            "error": "TMDB movie details request failed",
+            "status": resp.status_code,
+            "detail": resp.text
+        }), resp.status_code
+
+    data = resp.json()
+
+    # Extract genres as list of names
+    genres = [g["name"] for g in data.get("genres", [])]
+
+    # Extract directors from crew
+    crew = data.get("credits", {}).get("crew", [])
+    directors = [c["name"] for c in crew if c.get("job") == "Director"]
+
+    # Extract top-billed cast (first 5)
+    cast_list = data.get("credits", {}).get("cast", [])
+    cast = [c["name"] for c in cast_list[:5]]
+
+    movie_detail = {
+        "id":            data.get("id"),
+        "title":         data.get("title"),
+        "description":   data.get("overview"),
+        "release_date":  data.get("release_date"),
+        "runtime":       data.get("runtime"),
+        "genres":        genres,
+        "director":      directors,
+        "cast":          cast,
+        "poster_path":   data.get("poster_path"),
+    }
+
+    return jsonify(movie_detail)
