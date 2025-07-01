@@ -8,6 +8,7 @@ import { TrendingSection } from "../components/TrendingSection";
 import type { TrendingMovie } from "../components/TrendingSection";
 import { SearchBar } from "../components/SearchBar";
 import { MovieGrid } from "../components/MovieGrid";
+import { Link } from "react-router-dom";
 
 // any UI imports you still need
 import { Card, CardContent } from "@/components/ui/card";
@@ -138,17 +139,19 @@ export default function MovieRaterHomeScreen() {
             )}
             <MovieGrid>
               {searchResults.map((m) => (
-                <Card key={m.id} className="hover:shadow-lg">
-                  <img
-                    src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
-                    alt={m.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                  <CardContent>
-                    <h3 className="font-semibold line-clamp-1">{m.title}</h3>
-                    <p className="text-sm line-clamp-2">{m.overview}</p>
-                  </CardContent>
-                </Card>
+                <Link key={m.id} to={`/movies/${m.id}`}>
+                  <Card key={m.id} className="hover:shadow-lg">
+                    <img
+                      src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
+                      alt={m.title}
+                      className="w-full h-48 object-cover rounded-t-lg"
+                    />
+                    <CardContent>
+                      <h3 className="font-semibold line-clamp-1">{m.title}</h3>
+                      <p className="text-sm line-clamp-2">{m.overview}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </MovieGrid>
           </section>
@@ -157,21 +160,23 @@ export default function MovieRaterHomeScreen() {
             <h2 className="text-2xl font-bold mb-4">All Movies</h2>
             <MovieGrid>
               {movies.map((m) => (
-                <Card key={m.id} className="hover:shadow-lg">
-                  <img
-                    src={m.poster}
-                    alt={m.title}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                  <Badge className="absolute top-2 right-2 bg-red-500">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    {m.trending ? "Hot" : ""}
-                  </Badge>
-                  <CardContent>
-                    <h3 className="font-semibold line-clamp-1">{m.title}</h3>
-                    {/* rating, year, etc. */}
-                  </CardContent>
-                </Card>
+                <Link key={m.id} to={`/movies/${m.id}`}>
+                  <Card key={m.id} className="hover:shadow-lg">
+                    <img
+                      src={m.poster}
+                      alt={m.title}
+                      className="w-full h-48 object-cover rounded-t-lg"
+                    />
+                    <Badge className="absolute top-2 right-2 bg-red-500">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      {m.trending ? "Hot" : ""}
+                    </Badge>
+                    <CardContent>
+                      <h3 className="font-semibold line-clamp-1">{m.title}</h3>
+                      {/* rating, year, etc. */}
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
             </MovieGrid>
           </section>
