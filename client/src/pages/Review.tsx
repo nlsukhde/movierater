@@ -443,6 +443,19 @@ export default function MovieDetailPage() {
                                 rows={3}
                                 value={editComment}
                                 onChange={(e) => setEditComment(e.target.value)}
+                                className="
+                                      bg-white/10
+                                      border
+                                      border-white/20
+                                      rounded-lg
+                                      p-2
+                                      text-white
+                                      placeholder-gray-400
+                                      focus:border-red-400
+                                      focus:ring-2
+                                      focus:ring-red-400/20
+                                    "
+                                placeholder="Edit your review…"
                               />
                               <div className="flex gap-2">
                                 <Button
@@ -527,6 +540,19 @@ export default function MovieDetailPage() {
                     rows={4}
                     value={reviewComment}
                     onChange={(e) => setReviewComment(e.target.value)}
+                    className="
+                    bg-white/10
+                    border
+                    border-white/20
+                    rounded-lg
+                    p-2
+                    text-white
+                    placeholder-gray-400
+                    focus:border-red-400
+                    focus:ring-2
+                    focus:ring-red-400/20
+                  "
+                    placeholder="Share your thoughts…"
                   />
                   <Button
                     onClick={handleSubmitReview}
