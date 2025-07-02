@@ -3,3 +3,5 @@
 
 # Ignore local history (used by some extensions)
 .history/
+
+.env

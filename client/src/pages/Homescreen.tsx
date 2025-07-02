@@ -1,6 +1,8 @@
 // MovieRaterHomeScreen.tsx
 import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import api from "@/lib/api";
+import { supabase } from "@/lib/supabaseClient";
 
 // your new components
 import { StatsCards } from "../components/StatsCards";
@@ -8,13 +10,12 @@ import { TrendingSection } from "../components/TrendingSection";
 import type { TrendingMovie } from "../components/TrendingSection";
 import { SearchBar } from "../components/SearchBar";
 import { MovieGrid } from "../components/MovieGrid";
-import { Link } from "react-router-dom";
 
-// any UI imports you still need
+// UI imports
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Movie {
   id: number;
@@ -27,6 +28,9 @@ interface Movie {
 }
 
 export default function MovieRaterHomeScreen() {
+  const navigate = useNavigate();
+  const [username, setUsername] = useState<string>("");
+
   // Trending state
   const [trendingMovies, setTrendingMovies] = useState<TrendingMovie[]>([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
@@ -44,12 +48,15 @@ export default function MovieRaterHomeScreen() {
   ];
   const totalReviews = movies.reduce((sum, m) => sum + m.reviewCount, 0);
 
-  // Mock user data (avatar/name)
-  const currentUser = {
-    name: "Alex Johnson",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-  };
+  // fetch current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user }, error }) => {
+      if (user) {
+        const meta = (user.user_metadata as any) || {};
+        setUsername(meta.username || "");
+      }
+    });
+  }, []);
 
   // fetch trending
   useEffect(() => {
@@ -80,6 +87,12 @@ export default function MovieRaterHomeScreen() {
     }
   };
 
+  // logout handler
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* ← NAVBAR / HEADER */}
@@ -90,19 +103,10 @@ export default function MovieRaterHomeScreen() {
             <h1 className="text-2xl font-bold">MovieRate</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Avatar>
-              <AvatarImage src={currentUser.avatar} alt={currentUser.name} />
-              <AvatarFallback>
-                {currentUser.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div className="hidden sm:block">
-              <p className="text-sm font-medium">{currentUser.name}</p>
-              <p className="text-xs text-muted-foreground">Movie Enthusiast</p>
-            </div>
+            <p className="text-sm font-medium">Hello, {username}</p>
+            <Button onClick={handleLogout} variant="outline">
+              Log Out
+            </Button>
           </div>
         </div>
       </header>
@@ -140,7 +144,7 @@ export default function MovieRaterHomeScreen() {
             <MovieGrid>
               {searchResults.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card key={m.id} className="hover:shadow-lg">
+                  <Card className="hover:shadow-lg">
                     <img
                       src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
                       alt={m.title}
@@ -161,7 +165,7 @@ export default function MovieRaterHomeScreen() {
             <MovieGrid>
               {movies.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card key={m.id} className="hover:shadow-lg">
+                  <Card className="hover:shadow-lg">
                     <img
                       src={m.poster}
                       alt={m.title}

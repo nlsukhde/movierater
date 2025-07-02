@@ -1,4 +1,6 @@
 import axios from "axios"
+import { supabase } from "./supabaseClient";
+
 
 const api = axios.create({
   baseURL: "http://localhost:5000",
@@ -8,12 +10,14 @@ const api = axios.create({
 })
 
 // on every request, attach Authorization header if we have a token
-  api.interceptors.request.use((config) => {
-    const token = localStorage.getItem("token");
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  });
+api.interceptors.request.use(async (config) => {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (session?.access_token && config.headers) {
+    config.headers.Authorization = `Bearer ${session.access_token}`;
+  }
+  return config;
+});
 
 export default api

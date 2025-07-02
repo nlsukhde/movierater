@@ -3,6 +3,7 @@
 import os
 import requests
 from flask import Blueprint, jsonify, request
+from routes.auth import verify_token
 
 tmdb_bp = Blueprint("tmdb", __name__)
 
@@ -13,6 +14,9 @@ TMDB_API_KEY   = os.getenv("API_KEY")
 def get_trending():
     if not TMDB_API_KEY:
         return jsonify({"error": "TMDB_API_KEY not set"}), 500
+    
+    user = verify_token()
+    supa_id = user["sub"]   # Supabase UUID
 
     url = f"{TMDB_BASE_URL}/trending/movie/day"
     params = {
@@ -51,6 +55,9 @@ def search_movies():
         return jsonify({"error": "TMDB_API_KEY not set"}), 500
 
     # required
+    user = verify_token()
+    supa_id = user["sub"]   # Supabase UUID
+
     query = request.args.get("query")
     if not query:
         return jsonify({"error": "Missing required query parameter 'query'"}), 400
@@ -96,6 +103,9 @@ def search_movies():
 def get_movie_details(movie_id):
     if not TMDB_API_KEY:
         return jsonify({"error": "TMDB_API_KEY not set"}), 500
+
+    user = verify_token()
+    supa_id = user["sub"]   # Supabase UUID
 
     # Fetch movie + credits in one call
     url = f"{TMDB_BASE_URL}/movie/{movie_id}"

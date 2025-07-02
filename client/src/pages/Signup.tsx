@@ -1,56 +1,74 @@
+// AuthPage.tsx
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "@/lib/api";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(false);
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
 
+  // redirect if already logged in
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) navigate("/homescreen");
+    });
+  }, [navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage("");
 
-    // --- validate signup passwords ---
-    if (!isLogin && password !== confirmPassword) {
-      setMessage("Passwords do not match.");
-      return;
+    if (!isLogin) {
+      if (!username.trim()) {
+        setMessage("Username is required.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setMessage("Passwords do not match.");
+        return;
+      }
     }
 
     try {
-      const url = isLogin ? "/login" : "/signup";
-      const res = await api.post(url, { email, password });
-      const data = res.data;
+      let result;
 
       if (isLogin) {
-        // ——— LOGIN FLOW ———
-        // save the token
-        localStorage.setItem("token", data.token);
+        // Supabase login
+        result = await supabase.auth.signInWithPassword({ email, password });
+      } else {
+        // Supabase sign up with username in metadata
+        result = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { username: username.trim() } },
+        });
+      }
+
+      if (result.error) throw result.error;
+
+      if (isLogin) {
         setMessage("Logged in successfully!");
-        // go to your homescreen
         navigate("/homescreen");
       } else {
-        // ——— SIGNUP FLOW ———
-        setMessage("Account created! Please log in.");
-        // flip into login mode
+        setMessage("Email sent, please verify your account before signing in!");
         setIsLogin(true);
       }
 
-      // common cleanup
+      // clear fields
+      setUsername("");
       setEmail("");
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      const msg =
-        err.response?.data?.error ||
-        (isLogin ? "Login failed." : "Signup failed.");
-      setMessage(msg);
+      setMessage(err.message || "Authentication failed.");
     }
   };
 
@@ -72,6 +90,19 @@ export default function AuthPage() {
         <h1 className="text-xl font-bold mb-4">
           {isLogin ? "Log In" : "Create Account"}
         </h1>
+
+        {!isLogin && (
+          <div className="mb-4">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required={!isLogin}
+            />
+          </div>
+        )}
 
         <div className="mb-4">
           <Label htmlFor="email">Email</Label>
@@ -119,7 +150,8 @@ export default function AuthPage() {
           disabled={
             !email ||
             !password ||
-            (!isLogin && (!confirmPassword || !passwordsMatch))
+            (!isLogin &&
+              (!confirmPassword || !passwordsMatch || !username.trim()))
           }
         >
           {isLogin ? "Log In" : "Sign Up"}
