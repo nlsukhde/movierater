@@ -31,6 +31,10 @@ export default function MovieRaterHomeScreen() {
   const navigate = useNavigate();
   const [username, setUsername] = useState<string>("");
 
+  // --- Stats state ---
+  const [nowPlayingCount, setNowPlayingCount] = useState<number>(0);
+  const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
+
   // Trending state
   const [trendingMovies, setTrendingMovies] = useState<TrendingMovie[]>([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
@@ -46,7 +50,6 @@ export default function MovieRaterHomeScreen() {
   const movies: Movie[] = [
     /* … */
   ];
-  const totalReviews = movies.reduce((sum, m) => sum + m.reviewCount, 0);
 
   // fetch current user
   useEffect(() => {
@@ -58,8 +61,28 @@ export default function MovieRaterHomeScreen() {
     });
   }, []);
 
-  // fetch trending
+  // Fetch your three stats on mount
   useEffect(() => {
+    // 1) Movies in theaters
+    api
+      .get<{ count: number }>("/api/movies/now_playing/count")
+      .then(({ data }) => setNowPlayingCount(data.count))
+      .catch(() => console.error("Failed to fetch now playing count"));
+
+    // 2) Total reviews across all movies (Supabase)
+    const fetchReviewsCount = async () => {
+      const { count, error } = await supabase
+        .from("reviews")
+        .select("id", { count: "exact", head: true });
+      if (error) {
+        console.error("Failed to fetch reviews count", error);
+      } else if (count !== null) {
+        setTotalReviewsCount(count);
+      }
+    };
+    fetchReviewsCount();
+
+    // 3) Trending movies (your existing logic)
     api
       .get("/api/movies/trending")
       .then((res) => setTrendingMovies(res.data.results))
@@ -90,7 +113,7 @@ export default function MovieRaterHomeScreen() {
   // logout handler
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/auth");
+    navigate("/");
   };
 
   return (
@@ -113,9 +136,9 @@ export default function MovieRaterHomeScreen() {
       <div className="container mx-auto px-4 py-8">
         {/* Stats */}
         <StatsCards
-          total={movies.length}
+          total={nowPlayingCount}
           trending={trendingMovies.length}
-          reviews={totalReviews}
+          reviews={totalReviewsCount}
         />
 
         {/* Trending Section */}

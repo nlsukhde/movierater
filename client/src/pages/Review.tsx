@@ -8,7 +8,6 @@ import {
   Clock,
   Users,
   MessageSquare,
-  ThumbsUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,11 +18,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import api from "@/lib/api";
+import { supabase } from "@/lib/supabaseClient";
 
 interface MovieDetail {
   id: number;
@@ -38,16 +37,13 @@ interface MovieDetail {
 }
 
 interface Review {
-  // still define for UI, but start empty
   id: number;
   userId: string;
   userName: string;
-  userAvatar?: string;
   rating: number;
   comment: string;
   date: string;
   helpful: number;
-  verified: boolean;
 }
 
 export default function MovieDetailPage() {
@@ -55,37 +51,63 @@ export default function MovieDetailPage() {
   const movieId = Number(id);
   const navigate = useNavigate();
 
+  // Movie state
   const [movie, setMovie] = useState<MovieDetail | null>(null);
-  const [reviews] = useState<Review[]>([]); // empty for now
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // rating form state (you can keep these or remove until reviews exist)
+  // Reviews state
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  // Rating form state
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [hasReviewed, setHasReviewed] = useState(false);
 
+  // Fetch movie details from your Flask API
   useEffect(() => {
     if (!movieId) {
       setError("Invalid movie ID");
       setLoading(false);
       return;
     }
-
     api
       .get<MovieDetail>(`/api/movies/${movieId}`)
       .then((res) => setMovie(res.data))
-      .catch((e) => {
-        console.error(e);
-        setError("Failed to load movie details");
-      })
+      .catch(() => setError("Failed to load movie details"))
       .finally(() => setLoading(false));
   }, [movieId]);
 
-  if (loading) return <p className="p-4 text-center">Loading…</p>;
-  if (error) return <p className="p-4 text-center text-red-600">{error}</p>;
-  if (!movie) return <p className="p-4 text-center">Movie not found.</p>;
+  // Load reviews from Supabase
+  const loadReviews = async () => {
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("id, user_id, username, rating, comment, created_at, helpful")
+      .eq("movie_id", movieId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setReviewError("Failed to load reviews.");
+      return;
+    }
+    setReviews(
+      data.map((r) => ({
+        id: r.id,
+        userId: r.user_id,
+        userName: r.username,
+        rating: r.rating,
+        comment: r.comment,
+        date: new Date(r.created_at).toLocaleDateString(),
+        helpful: r.helpful,
+      }))
+    );
+  };
+
+  useEffect(() => {
+    loadReviews();
+  }, [movieId]);
 
   // Helpers
   const formatDate = (s: string) =>
@@ -96,19 +118,10 @@ export default function MovieDetailPage() {
     });
 
   const calculateAverage = () => {
-    if (!reviews.length) return 0;
+    if (reviews.length === 0) return 0;
     const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
     return Number((sum / reviews.length).toFixed(1));
   };
-
-  const distribution = Array(10)
-    .fill(0)
-    .map((_, i) => ({
-      rating: i + 1,
-      count: 0,
-      percentage: 0,
-    }))
-    .reverse();
 
   const renderStars = (
     rating: number,
@@ -137,12 +150,44 @@ export default function MovieDetailPage() {
     );
   };
 
-  // Submit handler can stay stubbed until reviews exist
-  const handleSubmitReview = () => {
+  // Submit new review
+  const handleSubmitReview = async () => {
     if (userRating < 1) return;
-    // post to /api/movies/:id/reviews once that exists
-    setHasReviewed(true);
+
+    // Get current user
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+    if (userErr || !user) {
+      setReviewError("You must be logged in to leave a review.");
+      return;
+    }
+
+    // Insert into Supabase
+    const { error: insertErr } = await supabase.from("reviews").insert([
+      {
+        movie_id: movieId,
+        user_id: user.id,
+        username: user.user_metadata.username,
+        rating: userRating,
+        comment: reviewComment || null,
+        helpful: 0,
+      },
+    ]);
+
+    if (insertErr) {
+      setReviewError(insertErr.message);
+    } else {
+      setHasReviewed(true);
+      setReviewError(null);
+      loadReviews();
+    }
   };
+
+  if (loading) return <p className="p-4 text-center">Loading movie details…</p>;
+  if (error) return <p className="p-4 text-center text-red-600">{error}</p>;
+  if (!movie) return <p className="p-4 text-center">Movie not found.</p>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,135 +210,155 @@ export default function MovieDetailPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Movie Info */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <img
-                src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                alt={movie.title}
-                className="w-full rounded-lg shadow-lg"
-              />
-              <div className="md:col-span-2 space-y-4">
-                <h1 className="text-3xl font-bold">{movie.title}</h1>
-                <div className="flex items-center gap-4 text-muted-foreground">
-                  <Calendar className="w-4 h-4" />
-                  <span>{formatDate(movie.release_date)}</span>
-                  <Clock className="w-4 h-4" />
-                  <span>{movie.runtime} min</span>
-                  <Users className="w-4 h-4" />
-                  <span>0 reviews</span>
+      <div className="container mx-auto px-4 py-8 grid lg:grid-cols-3 gap-8">
+        {/* Movie Info */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            <img
+              src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
+              alt={movie.title}
+              className="w-full rounded-lg shadow-lg"
+            />
+            <div className="md:col-span-2 space-y-4">
+              <h1 className="text-3xl font-bold">{movie.title}</h1>
+              <div className="flex items-center gap-4 text-muted-foreground">
+                <Calendar className="w-4 h-4" />
+                <span>{formatDate(movie.release_date)}</span>
+                <Clock className="w-4 h-4" />
+                <span>{movie.runtime} min</span>
+                <Users className="w-4 h-4" />
+                <span>{reviews.length} reviews</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {movie.genres.map((g) => (
+                  <Badge key={g}>{g}</Badge>
+                ))}
+              </div>
+              <div className="flex items-center gap-4">
+                {renderStars(calculateAverage(), false, "lg")}
+                <span className="text-2xl font-bold">{calculateAverage()}</span>
+              </div>
+              <h3 className="font-semibold">Synopsis</h3>
+              <p className="text-muted-foreground">{movie.description}</p>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <h4 className="font-semibold">Director</h4>
+                  <p className="text-muted-foreground">
+                    {movie.director.join(", ")}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {movie.genres.map((g) => (
-                    <Badge key={g} variant="secondary">
-                      {g}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="flex items-center gap-4">
-                  {renderStars(Math.round(calculateAverage()), false, "lg")}
-                  <span className="text-2xl font-bold">
-                    {calculateAverage()}
-                  </span>
-                </div>
-                <h3 className="font-semibold">Synopsis</h3>
-                <p className="text-muted-foreground">{movie.description}</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="font-semibold">Director</h4>
-                    <p className="text-muted-foreground">
-                      {movie.director.join(", ")}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Cast</h4>
-                    <p className="text-muted-foreground">
-                      {movie.cast.join(", ")}
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-semibold">Cast</h4>
+                  <p className="text-muted-foreground">
+                    {movie.cast.join(", ")}
+                  </p>
                 </div>
               </div>
             </div>
-
-            {/* Placeholder for Reviews */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  User Reviews
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">
-                No reviews yet.
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Sidebar (rating form + stats) */}
-          <div className="space-y-6">
-            {/* Rating Form stub */}
-            {!hasReviewed ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Rate This Movie</CardTitle>
-                  <CardDescription>Share your thoughts</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <Label>Your Rating</Label>
-                  {renderStars(userRating, true, "lg")}
-                  <Label htmlFor="comment" className="mt-2">
-                    Review (optional)
-                  </Label>
-                  <Textarea
-                    id="comment"
-                    rows={4}
-                    value={reviewComment}
-                    onChange={(e) => setReviewComment(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleSubmitReview}
-                    disabled={!userRating}
-                    className="w-full"
-                  >
-                    Submit Review
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="text-center">✅ Thanks!</CardContent>
-              </Card>
-            )}
+          {/* User Reviews */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                User Reviews
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {reviewError && (
+                <p className="text-sm text-red-600">{reviewError}</p>
+              )}
+              {reviews.length > 0 ? (
+                reviews.map((r) => (
+                  <Card key={r.id} className="mb-4">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{r.userName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.date}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center mb-2">
+                        {renderStars(r.rating, false, "sm")}
+                      </div>
+                      <p>{r.comment}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Helpful: {r.helpful}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No reviews yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Empty distribution & stats */}
+        {/* Sidebar: rating form + stats */}
+        <div className="space-y-6">
+          {!hasReviewed ? (
             <Card>
               <CardHeader>
-                <CardTitle>Rating Distribution</CardTitle>
+                <CardTitle>Rate This Movie</CardTitle>
+                <CardDescription>Share your thoughts</CardDescription>
               </CardHeader>
-              <CardContent>No data yet.</CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Movie Stats</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Average Rating</span>
-                  <span>{calculateAverage()}/10</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Reviews</span>
-                  <span>0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Release Year</span>
-                  <span>{new Date(movie.release_date).getFullYear()}</span>
-                </div>
+              <CardContent className="space-y-4">
+                <Label>Your Rating</Label>
+                {renderStars(userRating, true, "lg")}
+                <Label htmlFor="comment" className="mt-2">
+                  Review (optional)
+                </Label>
+                <Textarea
+                  id="comment"
+                  rows={4}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                />
+                <Button
+                  onClick={handleSubmitReview}
+                  disabled={!userRating}
+                  className="w-full"
+                >
+                  Submit Review
+                </Button>
               </CardContent>
             </Card>
-          </div>
+          ) : (
+            <Card>
+              <CardContent className="text-center">✅ Thanks!</CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rating Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>No data yet.</CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Movie Stats</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span>Average Rating</span>
+                <span>{calculateAverage()}/10</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Reviews</span>
+                <span>{reviews.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Release Year</span>
+                <span>{new Date(movie.release_date).getFullYear()}</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

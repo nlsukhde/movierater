@@ -13,7 +13,9 @@ export function StatsCards({ total, trending, reviews }: StatsCardsProps) {
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <Card>
         <CardHeader className="flex items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Total Movies</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            Movies In Theaters
+          </CardTitle>
           <Calendar className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
