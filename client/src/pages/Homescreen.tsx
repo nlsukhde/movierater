@@ -15,14 +15,13 @@ import { MovieGrid } from "../components/MovieGrid";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Star, Film, Play, Camera } from "lucide-react";
 
+// Define your Movie type for all-movies grid
 interface Movie {
   id: number;
   title: string;
-  year: number;
-  rating: number;
-  reviewCount: number;
+  overview: string;
   poster: string;
   trending: boolean;
 }
@@ -31,7 +30,7 @@ export default function MovieRaterHomeScreen() {
   const navigate = useNavigate();
   const [username, setUsername] = useState<string>("");
 
-  // --- Stats state ---
+  // Stats state
   const [nowPlayingCount, setNowPlayingCount] = useState<number>(0);
   const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
 
@@ -46,14 +45,14 @@ export default function MovieRaterHomeScreen() {
   const [loadingSearch, setLoadingSearch] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Mock “all movies” for StatsCards and later “All Movies” grid
+  // Mock “all movies” for the All Movies section
   const movies: Movie[] = [
-    /* … */
+    // populate with { id, title, overview, poster, trending }
   ];
 
   // fetch current user
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user }, error }) => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         const meta = (user.user_metadata as any) || {};
         setUsername(meta.username || "");
@@ -61,28 +60,20 @@ export default function MovieRaterHomeScreen() {
     });
   }, []);
 
-  // Fetch your three stats on mount
+  // Fetch stats & trending on mount
   useEffect(() => {
-    // 1) Movies in theaters
     api
       .get<{ count: number }>("/api/movies/now_playing/count")
       .then(({ data }) => setNowPlayingCount(data.count))
       .catch(() => console.error("Failed to fetch now playing count"));
 
-    // 2) Total reviews across all movies (Supabase)
-    const fetchReviewsCount = async () => {
+    (async () => {
       const { count, error } = await supabase
         .from("reviews")
         .select("id", { count: "exact", head: true });
-      if (error) {
-        console.error("Failed to fetch reviews count", error);
-      } else if (count !== null) {
-        setTotalReviewsCount(count);
-      }
-    };
-    fetchReviewsCount();
+      if (!error && count !== null) setTotalReviewsCount(count);
+    })();
 
-    // 3) Trending movies (your existing logic)
     api
       .get("/api/movies/trending")
       .then((res) => setTrendingMovies(res.data.results))
@@ -104,7 +95,7 @@ export default function MovieRaterHomeScreen() {
       });
       setSearchResults(res.data.results);
     } catch {
-      setSearchError("Search failed");
+      setSearchError("Search failed.");
     } finally {
       setLoadingSearch(false);
     }
@@ -117,65 +108,111 @@ export default function MovieRaterHomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* ← NAVBAR / HEADER */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Animated BG Icons */}
+      <div className="absolute inset-0">
+        <div className="absolute top-24 left-12 text-yellow-400/20 animate-pulse">
+          <Star size={28} />
+        </div>
+        <div className="absolute top-40 right-20 text-red-400/20 animate-bounce">
+          <Film size={32} />
+        </div>
+        <div className="absolute bottom-32 left-20 text-blue-400/20 animate-pulse">
+          <Play size={28} />
+        </div>
+        <div className="absolute bottom-20 right-32 text-purple-400/20 animate-bounce">
+          <Camera size={36} />
+        </div>
+      </div>
+
+      {/* Page Content */}
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Header */}
+        <header className="mb-8 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="text-2xl font-bold text-primary">🎬</div>
-            <h1 className="text-2xl font-bold">MovieRate</h1>
+            <div className="relative">
+              <Film className="text-red-500 w-8 h-8 mr-1" />
+              <Star className="absolute -top-1 -right-1 text-yellow-400 w-4 h-4 animate-pulse" />
+            </div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-red-500 via-yellow-400 to-purple-500 bg-clip-text text-transparent">
+              RateMyReel
+            </h1>
           </div>
           <div className="flex items-center gap-4">
-            <p className="text-sm font-medium">Hello, {username}</p>
-            <Button onClick={handleLogout} variant="outline">
+            <p className="text-white font-medium">Hi, {username}</p>
+            <Button
+              onClick={handleLogout}
+              className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+            >
               Log Out
             </Button>
           </div>
+        </header>
+
+        {/* Stats Cards */}
+        <div className="mb-8 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4">
+          <StatsCards
+            total={nowPlayingCount}
+            trending={trendingMovies.length}
+            reviews={totalReviewsCount}
+          />
         </div>
-      </header>
-      <div className="container mx-auto px-4 py-8">
-        {/* Stats */}
-        <StatsCards
-          total={nowPlayingCount}
-          trending={trendingMovies.length}
-          reviews={totalReviewsCount}
-        />
 
         {/* Trending Section */}
-        <TrendingSection
-          movies={trendingMovies}
-          loading={loadingTrending}
-          error={trendingError}
-        />
+        <div className="mb-8">
+          <TrendingSection
+            movies={trendingMovies}
+            loading={loadingTrending}
+            error={trendingError}
+          />
+        </div>
 
-        {/* Search + Filter */}
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onSearch={handleSearch}
-        />
+        {/* SearchBar */}
+        <div className="mb-8 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSearch={handleSearch}
+          />
+        </div>
 
-        {/* Results vs All Movies */}
+        {/* Search Results */}
         {searchQuery.trim() ? (
           <section>
-            <h2 className="text-2xl font-bold mb-4">Search Results</h2>
-            {loadingSearch && <p>Searching…</p>}
-            {searchError && <p className="text-red-600">{searchError}</p>}
-            {!loadingSearch && !searchError && searchResults.length === 0 && (
-              <p className="text-muted-foreground">No results found.</p>
-            )}
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              Search Results
+            </h2>
+            {loadingSearch && <p className="text-gray-300">Searching…</p>}
+            {searchError && <p className="text-red-400">{searchError}</p>}
             <MovieGrid>
               {searchResults.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card className="hover:shadow-lg">
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
-                      alt={m.title}
-                      className="w-full h-48 object-cover rounded-t-lg"
-                    />
-                    <CardContent>
-                      <h3 className="font-semibold line-clamp-1">{m.title}</h3>
-                      <p className="text-sm line-clamp-2">{m.overview}</p>
+                  <Card
+                    className="
+          backdrop-blur-xl
+          bg-white/10
+          border
+          border-white/20
+          rounded-2xl
+          overflow-hidden
+          hover:shadow-lg
+          transition-shadow
+        "
+                  >
+                    <div className="relative">
+                      <img
+                        src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
+                        alt={m.title}
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-white line-clamp-1">
+                        {m.title}
+                      </h3>
+                      <p className="text-sm text-gray-300 line-clamp-2">
+                        {m.overview}
+                      </p>
                     </CardContent>
                   </Card>
                 </Link>
@@ -184,11 +221,13 @@ export default function MovieRaterHomeScreen() {
           </section>
         ) : (
           <section>
-            <h2 className="text-2xl font-bold mb-4">All Movies</h2>
+            <h2 className="text-2xl font-semibold text-white mb-4">
+              All Movies
+            </h2>
             <MovieGrid>
               {movies.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card className="hover:shadow-lg">
+                  <Card className="relative hover:shadow-lg">
                     <img
                       src={m.poster}
                       alt={m.title}
@@ -196,11 +235,15 @@ export default function MovieRaterHomeScreen() {
                     />
                     <Badge className="absolute top-2 right-2 bg-red-500">
                       <TrendingUp className="w-3 h-3 mr-1" />
-                      {m.trending ? "Hot" : ""}
+                      Hot
                     </Badge>
                     <CardContent>
-                      <h3 className="font-semibold line-clamp-1">{m.title}</h3>
-                      {/* rating, year, etc. */}
+                      <h3 className="font-semibold line-clamp-1 text-white">
+                        {m.title}
+                      </h3>
+                      <p className="text-sm line-clamp-2 text-gray-300">
+                        {m.overview}
+                      </p>
                     </CardContent>
                   </Card>
                 </Link>

@@ -1,5 +1,5 @@
+// StatsCards.tsx
 import React from "react";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Calendar, TrendingUp, Users } from "lucide-react";
 
 interface StatsCardsProps {
@@ -10,41 +10,44 @@ interface StatsCardsProps {
 
 export function StatsCards({ total, trending, reviews }: StatsCardsProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <Card>
-        <CardHeader className="flex items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/** Movies In Theaters **/}
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-gray-200 uppercase">
             Movies In Theaters
-          </CardTitle>
-          <Calendar className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{total}</div>
-          <p className="text-xs text-muted-foreground">Latest releases</p>
-        </CardContent>
-      </Card>
+          </h3>
+          <Calendar className="h-5 w-5 text-yellow-400" />
+        </div>
+        <div className="text-3xl font-bold text-white mb-1">{total}</div>
+        <p className="text-xs text-gray-400">Latest releases</p>
+      </div>
 
-      <Card>
-        <CardHeader className="flex items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Trending Now</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{trending}</div>
-          <p className="text-xs text-muted-foreground">Hot picks today</p>
-        </CardContent>
-      </Card>
+      {/** Trending Now **/}
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-gray-200 uppercase">
+            Trending Now
+          </h3>
+          <TrendingUp className="h-5 w-5 text-red-400" />
+        </div>
+        <div className="text-3xl font-bold text-white mb-1">{trending}</div>
+        <p className="text-xs text-gray-400">Hot picks today</p>
+      </div>
 
-      <Card>
-        <CardHeader className="flex items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium">Total Reviews</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{reviews.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">Community ratings</p>
-        </CardContent>
-      </Card>
+      {/** Total Reviews **/}
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-6 flex flex-col">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-gray-200 uppercase">
+            Total Reviews
+          </h3>
+          <Users className="h-5 w-5 text-blue-400" />
+        </div>
+        <div className="text-3xl font-bold text-white mb-1">
+          {reviews.toLocaleString()}
+        </div>
+        <p className="text-xs text-gray-400">Community ratings</p>
+      </div>
     </div>
   );
 }
