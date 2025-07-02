@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import api from "@/lib/api";
 import { supabase } from "@/lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 
 interface MovieDetail {
   id: number;
@@ -56,15 +57,30 @@ export default function MovieDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- Authenticated user ---
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUser(user);
+    });
+  }, []);
+
   // Reviews state
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   // Rating form state
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [hasReviewed, setHasReviewed] = useState(false);
+
+  // 3.1) Track editing state
+  const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
+  const [editRating, setEditRating] = useState(0);
+  const [editComment, setEditComment] = useState("");
+  const [editHoverRating, setEditHoverRating] = useState(0);
 
   // Fetch movie details from your Flask API
   useEffect(() => {
@@ -79,6 +95,64 @@ export default function MovieDetailPage() {
       .catch(() => setError("Failed to load movie details"))
       .finally(() => setLoading(false));
   }, [movieId]);
+
+  // 3.2) Kick off edit: prefill fields
+  const startEditing = (r: Review) => {
+    setEditingReviewId(r.id);
+    setEditRating(r.rating);
+    setEditComment(r.comment);
+  };
+
+  // 3.3) Cancel edit
+  const cancelEditing = () => {
+    setEditingReviewId(null);
+    setEditRating(0);
+    setEditComment("");
+  };
+
+  const renderEditableStars = (
+    rating: number,
+    size: "sm" | "md" | "lg" = "md"
+  ) => {
+    const sizeCls = { sm: "w-4 h-4", md: "w-5 h-5", lg: "w-6 h-6" }[size];
+    return (
+      <div className="flex items-center gap-1">
+        {[...Array(10)].map((_, i) => (
+          <Star
+            key={i}
+            className={`${sizeCls} cursor-pointer transition-colors ${
+              i < (editHoverRating || rating)
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300 hover:text-yellow-400"
+            }`}
+            onMouseEnter={() => setEditHoverRating(i + 1)}
+            onMouseLeave={() => setEditHoverRating(0)}
+            onClick={() => setEditRating(i + 1)}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  // 3.4) Save edited review
+  const saveEditedReview = async () => {
+    if (editingReviewId === null || !currentUser) return;
+    const { error: updErr } = await supabase
+      .from("reviews")
+      .update({
+        rating: editRating,
+        comment: editComment || null,
+      })
+      .eq("id", editingReviewId)
+      .eq("user_id", currentUser.id);
+
+    if (updErr) {
+      setReviewError(updErr.message);
+    } else {
+      cancelEditing();
+      loadReviews();
+    }
+  };
 
   // Load reviews from Supabase
   const loadReviews = async () => {
@@ -117,6 +191,28 @@ export default function MovieDetailPage() {
       day: "numeric",
     });
 
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!currentUser) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete your review for this movie?"
+      )
+    )
+      return;
+
+    const { error: deleteErr } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", reviewId)
+      .eq("user_id", currentUser.id);
+
+    if (deleteErr) {
+      setReviewError(deleteErr.message);
+    } else {
+      loadReviews();
+    }
+  };
+
   const calculateAverage = () => {
     if (reviews.length === 0) return 0;
     const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
@@ -150,37 +246,50 @@ export default function MovieDetailPage() {
     );
   };
 
-  // Submit new review
   const handleSubmitReview = async () => {
-    if (userRating < 1) return;
+    if (userRating < 1 || !currentUser) return;
 
-    // Get current user
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser();
-    if (userErr || !user) {
-      setReviewError("You must be logged in to leave a review.");
+    setReviewError(null);
+    setReviewMessage(null);
+
+    // 1) Check for an existing review
+    const { data: existing, error: existErr } = await supabase
+      .from("reviews")
+      .select("id")
+      .eq("movie_id", movieId)
+      .eq("user_id", currentUser.id);
+
+    if (existErr) {
+      setReviewError(existErr.message);
       return;
     }
 
-    // Insert into Supabase
-    const { error: insertErr } = await supabase.from("reviews").insert([
-      {
-        movie_id: movieId,
-        user_id: user.id,
-        username: user.user_metadata.username,
-        rating: userRating,
-        comment: reviewComment || null,
-        helpful: 0,
-      },
-    ]);
+    const isUpdate = (existing ?? []).length > 0;
 
-    if (insertErr) {
-      setReviewError(insertErr.message);
+    // 2) Upsert the review (will INSERT or UPDATE based on the unique constraint)
+    const { error: upsertErr } = await supabase.from("reviews").upsert(
+      [
+        {
+          movie_id: movieId,
+          user_id: currentUser.id,
+          username: currentUser.user_metadata.username,
+          rating: userRating,
+          comment: reviewComment || null,
+          helpful: 0,
+        },
+      ],
+      { onConflict: ["user_id", "movie_id"] }
+    );
+
+    if (upsertErr) {
+      setReviewError(upsertErr.message);
     } else {
-      setHasReviewed(true);
-      setReviewError(null);
+      // 3) Show the right message
+      setReviewMessage(
+        isUpdate
+          ? "✅ Your review has been updated!"
+          : "✅ Thanks for your review!"
+      );
       loadReviews();
     }
   };
@@ -281,13 +390,63 @@ export default function MovieDetailPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center mb-2">
-                        {renderStars(r.rating, false, "sm")}
-                      </div>
-                      <p>{r.comment}</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Helpful: {r.helpful}
-                      </p>
+                      {editingReviewId === r.id ? (
+                        <>
+                          {/* ——— Edit mode ——— */}
+                          <div className="space-y-2">
+                            <Label>Your Rating</Label>
+                            {renderEditableStars(editRating, "md")}
+                            <Label htmlFor="editComment">Comment</Label>
+                            <Textarea
+                              id="editComment"
+                              rows={3}
+                              value={editComment}
+                              onChange={(e) => setEditComment(e.target.value)}
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={saveEditedReview}
+                                disabled={editRating < 1}
+                              >
+                                Save
+                              </Button>
+                              <Button variant="outline" onClick={cancelEditing}>
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* ——— Read mode ——— */}
+                          <div className="flex items-center mb-2">
+                            {renderStars(r.rating, false, "sm")}
+                          </div>
+                          <p>{r.comment}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              Helpful: {r.helpful}
+                            </p>
+                            {currentUser?.id === r.userId && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => startEditing(r)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeleteReview(r.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                 ))
@@ -297,6 +456,9 @@ export default function MovieDetailPage() {
             </CardContent>
           </Card>
         </div>
+        {reviewMessage && (
+          <p className="mb-4 text-sm text-green-600">{reviewMessage}</p>
+        )}
 
         {/* Sidebar: rating form + stats */}
         <div className="space-y-6">
