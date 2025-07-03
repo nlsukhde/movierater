@@ -224,23 +224,12 @@ export default function MovieRaterHomeScreen() {
             <MovieGrid>
               {searchResults.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card
-                    className="
-          backdrop-blur-xl
-          bg-white/10
-          border
-          border-white/20
-          rounded-2xl
-          overflow-hidden
-          hover:shadow-lg
-          transition-shadow
-        "
-                  >
-                    <div className="relative">
+                  <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="w-full aspect-[2/3] overflow-hidden">
                       <img
                         src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
                         alt={m.title}
-                        className="w-full h-48 object-cover"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     <CardContent className="p-4">
@@ -264,12 +253,14 @@ export default function MovieRaterHomeScreen() {
             <MovieGrid>
               {movies.map((m) => (
                 <Link key={m.id} to={`/movies/${m.id}`}>
-                  <Card className="relative hover:shadow-lg">
-                    <img
-                      src={m.poster}
-                      alt={m.title}
-                      className="w-full h-48 object-cover rounded-t-lg"
-                    />
+                  <Card className="relative hover:shadow-lg rounded-2xl overflow-hidden">
+                    <div className="w-full aspect-[2/3] overflow-hidden">
+                      <img
+                        src={m.poster}
+                        alt={m.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                     <Badge className="absolute top-2 right-2 bg-red-500">
                       <TrendingUp className="w-3 h-3 mr-1" />
                       Hot
