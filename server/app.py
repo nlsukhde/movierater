@@ -11,7 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # CORS setup (adjust origins as needed)
-CORS(app, origins=["https://https://ratemyreel.vercel.app"])
+CORS(app, origins=["https://ratemyreel.vercel.app"])
 
 # App configuration
 app.register_blueprint(tmdb_bp, url_prefix="/api/movies")
