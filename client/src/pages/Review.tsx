@@ -481,9 +481,7 @@ export default function MovieDetailPage() {
                             </div>
                             <p className="text-white">{r.comment}</p>
                             <div className="flex items-center justify-between mt-2">
-                              <p className="text-xs text-gray-300">
-                                Helpful: {r.helpful}
-                              </p>
+                              <p className="text-xs text-gray-300">Certified</p>
                               {currentUser?.id === r.userId && (
                                 <div className="flex gap-2">
                                   <Button

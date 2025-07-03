@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Star, Film, Play, Camera } from "lucide-react";
-
+import { getCached, setCached } from "@/lib/cache";
 // Define your Movie type for all-movies grid
 interface Movie {
   id: number;
@@ -49,6 +49,34 @@ export default function MovieRaterHomeScreen() {
   const movies: Movie[] = [
     // populate with { id, title, overview, poster, trending }
   ];
+
+  useEffect(() => {
+    const now = getCached<number>("nowPlaying", 60_000); // 1 min TTL
+    const rev = getCached<number>("totalReviews", 60_000);
+    const tr = getCached<TrendingMovie[]>("trending", 60_000);
+
+    if (now != null && rev != null && tr) {
+      setNowPlayingCount(now);
+      setTotalReviewsCount(rev);
+      setTrendingMovies(tr);
+      setLoadingTrending(false);
+    } else {
+      Promise.all([
+        api.get<{ count: number }>("/api/movies/now_playing/count"),
+        supabase.from("reviews").select("id", { count: "exact", head: true }),
+        api.get("/api/movies/trending"),
+      ])
+        .then(([nowR, revR, trR]) => {
+          setNowPlayingCount(nowR.data.count);
+          setTotalReviewsCount(revR.count!);
+          setTrendingMovies(trR.data.results);
+          setCached("nowPlaying", nowR.data.count);
+          setCached("totalReviews", revR.count!);
+          setCached("trending", trR.data.results);
+        })
+        .finally(() => setLoadingTrending(false));
+    }
+  }, []);
 
   // fetch current user
   useEffect(() => {

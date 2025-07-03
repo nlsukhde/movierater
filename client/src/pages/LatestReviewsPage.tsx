@@ -6,6 +6,7 @@ import api from "@/lib/api";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Star, Film, Play, Camera } from "lucide-react";
+import { getCached, setCached } from "@/lib/cache";
 
 interface ReviewRow {
   id: number;
@@ -32,21 +33,41 @@ export default function LatestReviewsPage() {
 
   // Load latest reviews
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("id, movie_id, username, rating, comment, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20);
+    const fetchReviews = async () => {
+      setLoading(true);
 
-      if (error) {
-        console.error("Failed to fetch latest reviews:", error);
-        setError("Could not load reviews.");
-      } else if (data) {
-        setReviews(data as ReviewRow[]);
+      // 1) Try localStorage cache (5-minute TTL)
+      const cached = getCached<ReviewRow[]>("latestReviews", 5 * 60_000);
+      if (cached) {
+        setReviews(cached);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    })();
+
+      // 2) Otherwise fetch from Supabase
+      try {
+        const { data, error } = await supabase
+          .from("reviews")
+          .select("id, movie_id, username, rating, comment, created_at")
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (error) {
+          console.error("Failed to fetch latest reviews:", error);
+          setError("Could not load reviews.");
+        } else if (data) {
+          setReviews(data as ReviewRow[]);
+          setCached("latestReviews", data as ReviewRow[]);
+        }
+      } catch (err) {
+        console.error("Unexpected error loading reviews:", err);
+        setError("Could not load reviews.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReviews();
   }, []);
 
   // Fetch movie poster and title for each unique movie_id
@@ -54,6 +75,7 @@ export default function LatestReviewsPage() {
     const uniqueIds = Array.from(new Set(reviews.map((r) => r.movie_id)));
     if (!uniqueIds.length) return;
 
+    // (You could also cache movieMeta the same way, if desired)
     (async () => {
       const entries = await Promise.all(
         uniqueIds.map(async (mid) => {
