@@ -12,7 +12,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # CORS setup (adjust origins as needed)
-CORS(app, supports_credentials=True)
+CORS(app, origins=["https://https://ratemyreel.vercel.app"])
 
 # App configuration
 app.register_blueprint(tmdb_bp, url_prefix="/api/movies")
@@ -22,6 +22,7 @@ app.register_blueprint(tmdb_bp, url_prefix="/api/movies")
 def index():
     return jsonify({"message": "MovieRater backend is running."})
 
-# Entry point
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
