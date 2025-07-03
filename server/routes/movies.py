@@ -1,5 +1,4 @@
 # routes/movies.py
-
 import os
 import requests
 from flask import Blueprint, jsonify, request

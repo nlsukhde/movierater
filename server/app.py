@@ -1,6 +1,5 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-from db import db
 from dotenv import load_dotenv
 from routes.movies import tmdb_bp
 import os
