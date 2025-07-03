@@ -1,4 +1,3 @@
-// src/pages/LatestReviewsPage.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -144,14 +143,18 @@ export default function LatestReviewsPage() {
                     onClick={() => navigate(`/movies/${r.movie_id}`)}
                     className="cursor-pointer"
                   >
-                    <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+                    <Card className="flex flex-col backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
+                      {/* Poster locked to 2:3, full containment */}
                       {meta.poster && (
-                        <img
-                          src={`https://image.tmdb.org/t/p/w300${meta.poster}`}
-                          alt={meta.title}
-                          className="w-full h-40 object-cover"
-                        />
+                        <div className="w-full aspect-w-2 aspect-h-3 bg-gray-800">
+                          <img
+                            src={`https://image.tmdb.org/t/p/w300${meta.poster}`}
+                            alt={meta.title}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
                       )}
+
                       <CardHeader className="p-4 pt-2">
                         <h3 className="text-lg font-semibold text-white line-clamp-1">
                           {meta.title}
