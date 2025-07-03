@@ -1,4 +1,3 @@
-import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";

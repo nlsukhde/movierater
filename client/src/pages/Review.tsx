@@ -1,5 +1,5 @@
 // MovieDetailPage.tsx
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -70,7 +70,7 @@ export default function MovieDetailPage() {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
-  const [hasReviewed, setHasReviewed] = useState(false);
+  const hasReviewed = useState(false);
 
   // 3.1) Track editing state
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
@@ -263,19 +263,27 @@ export default function MovieDetailPage() {
     const isUpdate = (existing ?? []).length > 0;
 
     // 2) Upsert the review (will INSERT or UPDATE based on the unique constraint)
-    const { error: upsertErr } = await supabase.from("reviews").upsert(
-      [
-        {
-          movie_id: movieId,
-          user_id: currentUser.id,
-          username: currentUser.user_metadata.username,
-          rating: userRating,
-          comment: reviewComment || null,
-          helpful: 0,
-        },
-      ],
-      { onConflict: ["user_id", "movie_id"] }
-    );
+
+    const payload = [
+      {
+        movie_id: movieId,
+        user_id: currentUser.id,
+        username: currentUser.user_metadata.username,
+        rating: userRating,
+        comment: reviewComment || null,
+        helpful: 0,
+      },
+    ] as Array<{
+      movie_id: number;
+      user_id: string;
+      username: string;
+      rating: number;
+      comment: string | null;
+      helpful: number;
+    }>;
+    const { error: upsertErr } = await supabase
+      .from("reviews")
+      .upsert(payload, { onConflict: "user_id,movie_id" });
 
     if (upsertErr) {
       setReviewError(upsertErr.message);
