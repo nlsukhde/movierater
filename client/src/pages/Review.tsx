@@ -70,7 +70,7 @@ export default function MovieDetailPage() {
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
-  const hasReviewed = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   // 3.1) Track editing state
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
@@ -162,17 +162,22 @@ export default function MovieDetailPage() {
       setReviewError("Failed to load reviews.");
       return;
     }
-    setReviews(
-      data.map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        userName: r.username,
-        rating: r.rating,
-        comment: r.comment,
-        date: new Date(r.created_at).toLocaleDateString(),
-        helpful: r.helpful,
-      }))
-    );
+    const mapped = data.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      userName: r.username,
+      rating: r.rating,
+      comment: r.comment,
+      date: new Date(r.created_at).toLocaleDateString(),
+      helpful: r.helpful,
+    }));
+    setReviews(mapped);
+
+    // ← new bit:
+    if (currentUser) {
+      const youReviewed = mapped.some((r) => r.userId === currentUser.id);
+      setHasReviewed(youReviewed);
+    }
   };
 
   useEffect(() => {
@@ -294,6 +299,7 @@ export default function MovieDetailPage() {
           ? "✅ Your review has been updated!"
           : "✅ Thanks for your review!"
       );
+      setHasReviewed(true);
       loadReviews();
     }
   };
