@@ -226,7 +226,7 @@ export default function MovieRaterHomeScreen() {
                 <Link key={m.id} to={`/movies/${m.id}`}>
                   <Card className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow">
                     {/* 2:3 box so all posters match shape */}
-                    <div className="w-full aspect-[3/2] bg-gray-800">
+                    <div className="w-full aspect-[2/3] bg-gray-800">
                       <img
                         src={`https://image.tmdb.org/t/p/w500${m.poster_path}`} // or poster_path URL
                         alt={m.title}
@@ -256,7 +256,7 @@ export default function MovieRaterHomeScreen() {
                 <Link key={m.id} to={`/movies/${m.id}`}>
                   <Card className="relative hover:shadow-lg rounded-2xl overflow-hidden">
                     {/* 2:3 box so all posters match shape */}
-                    <div className="w-full aspect-[3/2] bg-gray-800">
+                    <div className="w-full aspect-[2/3] bg-gray-800">
                       <img
                         src={m.poster} // or poster_path URL
                         alt={m.title}
