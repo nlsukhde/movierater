@@ -128,21 +128,30 @@ export default function MovieRaterHomeScreen() {
       {/* Page Content */}
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
-        <header className="mb-8 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 flex items-center justify-between">
+        <header
+          className="
+            mb-8
+            backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4
+            flex flex-col items-start gap-4
+            sm:flex-row sm:justify-between sm:items-center
+          "
+        >
           <div className="flex items-center gap-2">
             <div className="relative">
-              <Film className="text-red-500 w-8 h-8 mr-1" />
+              <Film className="text-red-500 w-8 h-8" />
               <Star className="absolute -top-1 -right-1 text-yellow-400 w-4 h-4 animate-pulse" />
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-red-500 via-yellow-400 to-purple-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-red-500 via-yellow-400 to-purple-500 bg-clip-text text-transparent">
               RateMyReel
             </h1>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-white font-medium">Hi, {username}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-white font-medium text-sm sm:text-base">
+              Hi, {username}
+            </p>
             <Button
               onClick={handleLogout}
-              className="bg-white/20 text-white border-white/30 hover:bg-white/30"
+              className="bg-white/20 text-white border-white/30 hover:bg-white/30 text-sm sm:text-base"
             >
               Log Out
             </Button>

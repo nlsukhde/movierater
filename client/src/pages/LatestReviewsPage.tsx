@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import api from "@/lib/api";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Star, Film, Play, Camera } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Star, Film, Play, Camera } from "lucide-react";
 
 interface ReviewRow {
   id: number;
@@ -29,6 +30,7 @@ export default function LatestReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load latest reviews
   useEffect(() => {
     (async () => {
       const { data, error } = await supabase
@@ -47,9 +49,10 @@ export default function LatestReviewsPage() {
     })();
   }, []);
 
+  // Fetch movie poster and title for each unique movie_id
   useEffect(() => {
     const uniqueIds = Array.from(new Set(reviews.map((r) => r.movie_id)));
-    if (uniqueIds.length === 0) return;
+    if (!uniqueIds.length) return;
 
     (async () => {
       const entries = await Promise.all(
@@ -112,11 +115,22 @@ export default function LatestReviewsPage() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Page header */}
+        {/* Page header with Back button */}
         <header className="mb-6 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 sticky top-0 z-10">
-          <h1 className="text-2xl font-bold text-white">
-            Latest Community Reviews
-          </h1>
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/")}
+              className="text-white"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Home
+            </Button>
+            <h1 className="text-2xl font-bold text-white">
+              Latest Community Reviews
+            </h1>
+          </div>
         </header>
 
         <main>
