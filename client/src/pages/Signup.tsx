@@ -1,12 +1,13 @@
-// AuthPage.tsx
 import { useState, useEffect } from "react";
 import { Film, Star, Play, Camera } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 
+type AuthMode = "signIn" | "signUp" | "forgotPassword";
+
 export default function AuthPage() {
   const navigate = useNavigate();
-  const [isLogin, setIsLogin] = useState(false);
+  const [mode, setMode] = useState<AuthMode>("signIn");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,43 +25,41 @@ export default function AuthPage() {
     e.preventDefault();
     setMessage("");
 
-    if (!isLogin) {
-      if (!username.trim()) {
-        setMessage("Username is required.");
-        return;
-      }
-      if (password !== confirmPassword) {
-        setMessage("Passwords do not match.");
-        return;
-      }
-    }
-
     try {
-      let result;
+      let result: any;
 
-      if (isLogin) {
+      if (mode === "signIn") {
         result = await supabase.auth.signInWithPassword({ email, password });
-      } else {
+        if (result.error) throw result.error;
+        setMessage("Logged in successfully!");
+        navigate("/homescreen");
+      } else if (mode === "signUp") {
+        if (!username.trim()) {
+          setMessage("Username is required.");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setMessage("Passwords do not match.");
+          return;
+        }
         result = await supabase.auth.signUp({
           email,
           password,
           options: { data: { username: username.trim() } },
         });
+        if (result.error) throw result.error;
+        setMessage("Email sent! Please verify before signing in.");
+        setMode("signIn");
+      } else if (mode === "forgotPassword") {
+        result = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (result.error) throw result.error;
+        setMessage("Check your email for reset instructions.");
+        setMode("signIn");
       }
 
-      if (result.error) throw result.error;
-
-      if (isLogin) {
-        setMessage("Logged in successfully!");
-        navigate("/homescreen");
-      } else {
-        setMessage("Email sent, please verify your account before signing in!");
-        setIsLogin(true);
-      }
-
-      // clear fields
-      setUsername("");
-      setEmail("");
+      // clear sensitive fields
       setPassword("");
       setConfirmPassword("");
     } catch (err: any) {
@@ -68,18 +67,15 @@ export default function AuthPage() {
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setMessage("");
-    setPassword("");
-    setConfirmPassword("");
-  };
-
+  // helper booleans
+  const isSignIn = mode === "signIn";
+  const isSignUp = mode === "signUp";
+  const isForgot = mode === "forgotPassword";
   const passwordsMatch = password === confirmPassword;
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background elements */}
+      {/* animated bg */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-10 text-yellow-400/20 animate-pulse">
           <Star size={24} />
@@ -93,21 +89,14 @@ export default function AuthPage() {
         <div className="absolute bottom-20 right-32 text-purple-400/20 animate-bounce">
           <Camera size={36} />
         </div>
-        <div className="absolute top-1/2 left-1/4 text-pink-400/10 animate-pulse">
-          <Star size={20} />
-        </div>
-        <div className="absolute top-1/3 right-1/3 text-indigo-400/10 animate-bounce">
-          <Film size={24} />
-        </div>
       </div>
 
-      {/* Main content */}
       <div className="relative z-10 flex items-center justify-center p-4 min-h-screen">
         <form
           onSubmit={handleSubmit}
           className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8"
         >
-          {/* Logo and title */}
+          {/* logo */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
               <div className="relative">
@@ -119,24 +108,17 @@ export default function AuthPage() {
               RateMyReel
             </h1>
             <p className="text-gray-300 text-sm">
-              Rate, review, and discover amazing films
+              {isForgot
+                ? "Enter your email to reset password"
+                : isSignIn
+                ? "Sign in to continue rating"
+                : "Create your account to start rating"}
             </p>
           </div>
 
-          {/* Form fields */}
+          {/* form fields */}
           <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-semibold text-white mb-2">
-                {isLogin ? "Welcome Back" : "Join RateMyReel"}
-              </h2>
-              <p className="text-gray-300 text-sm">
-                {isLogin
-                  ? "Sign in to continue rating movies"
-                  : "Create your account to start rating"}
-              </p>
-            </div>
-
-            {!isLogin && (
+            {isSignUp && (
               <div className="space-y-2">
                 <label
                   htmlFor="username"
@@ -173,25 +155,27 @@ export default function AuthPage() {
               />
             </div>
 
-            <div className="space-y-2">
-              <label
-                htmlFor="password"
-                className="block text-gray-200 font-medium text-sm"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:border-red-400 focus:ring-2 focus:ring-red-400/20 rounded-lg h-12 px-4 outline-none transition-all"
-                placeholder="Enter your password"
-              />
-            </div>
+            {!isForgot && (
+              <div className="space-y-2">
+                <label
+                  htmlFor="password"
+                  className="block text-gray-200 font-medium text-sm"
+                >
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-white/10 border border-white/20 text-white placeholder:text-gray-400 focus:border-red-400 focus:ring-2 focus:ring-red-400/20 rounded-lg h-12 px-4 outline-none transition-all"
+                  placeholder="Enter your password"
+                />
+              </div>
+            )}
 
-            {!isLogin && (
+            {isSignUp && (
               <div className="space-y-2">
                 <label
                   htmlFor="confirmPassword"
@@ -223,15 +207,24 @@ export default function AuthPage() {
               type="submit"
               disabled={
                 !email ||
-                !password ||
-                (!isLogin &&
-                  (!confirmPassword || !passwordsMatch || !username.trim()))
+                (isSignIn && !password) ||
+                (isSignUp &&
+                  (!username.trim() || !passwordsMatch || !password)) ||
+                (isForgot && !email)
               }
               className="w-full h-12 bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold rounded-lg shadow-lg shadow-red-500/25 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center space-x-2">
-                {isLogin ? <Play size={18} /> : <Star size={18} />}
-                <span>{isLogin ? "Sign In" : "Create Account"}</span>
+                {isSignIn && <Play size={18} />}
+                {isSignUp && <Star size={18} />}
+                {isForgot && <Camera size={18} />}
+                <span>
+                  {isSignIn
+                    ? "Sign In"
+                    : isSignUp
+                    ? "Create Account"
+                    : "Send Reset Link"}
+                </span>
               </div>
             </button>
 
@@ -239,9 +232,7 @@ export default function AuthPage() {
               <div className="text-center p-3 rounded-lg bg-white/10 border border-white/20">
                 <p
                   className={`text-sm ${
-                    message.includes("successfully") ||
-                    message.includes("Account") ||
-                    message.includes("verify")
+                    message.toLowerCase().includes("success")
                       ? "text-green-400"
                       : "text-red-400"
                   }`}
@@ -251,21 +242,55 @@ export default function AuthPage() {
               </div>
             )}
 
-            <div className="text-center pt-4 border-t border-white/20">
-              <p className="text-gray-300 text-sm">
-                {isLogin ? "New to MovieRate? " : "Already have an account? "}
-                <button
-                  type="button"
-                  className="text-red-400 hover:text-red-300 font-medium hover:underline transition-colors"
-                  onClick={toggleMode}
-                >
-                  {isLogin ? "Create an account" : "Sign in instead"}
-                </button>
-              </p>
+            <div className="text-center pt-4 border-t border-white/20 space-y-2">
+              {isSignIn && (
+                <>
+                  <button
+                    type="button"
+                    className="text-gray-300 text-sm hover:underline"
+                    onClick={() => setMode("forgotPassword")}
+                  >
+                    Forgot your password?
+                  </button>
+                  <p className="text-gray-300 text-sm">
+                    New to RateMyReel?{" "}
+                    <button
+                      type="button"
+                      className="text-red-400 hover:text-red-300 font-medium hover:underline"
+                      onClick={() => setMode("signUp")}
+                    >
+                      Create an account
+                    </button>
+                  </p>
+                </>
+              )}
+              {isSignUp && (
+                <p className="text-gray-300 text-sm">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    className="text-red-400 hover:text-red-300 font-medium hover:underline"
+                    onClick={() => setMode("signIn")}
+                  >
+                    Sign in instead
+                  </button>
+                </p>
+              )}
+              {isForgot && (
+                <p className="text-gray-300 text-sm">
+                  Remembered?{" "}
+                  <button
+                    type="button"
+                    className="text-red-400 hover:text-red-300 font-medium hover:underline"
+                    onClick={() => setMode("signIn")}
+                  >
+                    Sign in
+                  </button>
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Footer */}
           <div className="text-center mt-8">
             <p className="text-gray-400 text-xs">
               Discover • Rate • Review • Repeat

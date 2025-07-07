@@ -8,12 +8,14 @@ import MovieDetailPage from "./pages/Review";
 import LatestReviewsPage from "./pages/LatestReviewsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MyReviewsPage from "./pages/MyReviewsPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Signup />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/homescreen"
           element={
