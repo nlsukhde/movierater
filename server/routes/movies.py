@@ -183,3 +183,31 @@ def get_now_playing_count():
     count = len(data.get("results", []))
 
     return jsonify({"count": count})
+
+@tmdb_bp.route("/now_playing", methods=["GET"])
+def get_now_playing_list():
+    if not TMDB_API_KEY:
+        return jsonify({"error": "TMDB_API_KEY not set"}), 500
+
+    user = verify_token()
+    supa_id = user["sub"]
+
+    url = f"{TMDB_BASE_URL}/movie/now_playing"
+    params = {
+        "api_key": TMDB_API_KEY,
+        "language": "en-US",
+        "page": request.args.get("page", 1),
+    }
+
+    resp = requests.get(url, params=params)
+    try:
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError:
+        return jsonify({
+            "error": "TMDB now_playing request failed",
+            "status": resp.status_code,
+            "detail": resp.text
+        }), resp.status_code
+
+    # return the entire payload (so front-end can do `res.data.results`)
+    return jsonify(resp.json())

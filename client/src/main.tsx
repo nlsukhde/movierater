@@ -7,6 +7,7 @@ import MovieRaterHomeScreen from "./pages/Homescreen";
 import MovieDetailPage from "./pages/Review";
 import LatestReviewsPage from "./pages/LatestReviewsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import MyReviewsPage from "./pages/MyReviewsPage";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -34,6 +35,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           element={
             <ProtectedRoute>
               <LatestReviewsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-reviews"
+          element={
+            <ProtectedRoute>
+              <MyReviewsPage />
             </ProtectedRoute>
           }
         />

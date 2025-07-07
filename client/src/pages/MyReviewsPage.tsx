@@ -20,7 +20,7 @@ interface MovieInfo {
   title: string;
 }
 
-export default function LatestReviewsPage() {
+export default function MyReviewsPage() {
   const navigate = useNavigate();
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [movieMeta, setMovieMeta] = useState<
@@ -29,17 +29,28 @@ export default function LatestReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // load only the current user's reviews
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr || !user) {
+        setError("You must be logged in to see your reviews.");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: revErr } = await supabase
         .from("reviews")
         .select("id, movie_id, username, rating, comment, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Failed to fetch latest reviews:", error);
-        setError("Could not load reviews.");
+      if (revErr) {
+        console.error("Failed to fetch your reviews:", revErr);
+        setError("Could not load your reviews.");
       } else if (data) {
         setReviews(data as ReviewRow[]);
       }
@@ -47,6 +58,7 @@ export default function LatestReviewsPage() {
     })();
   }, []);
 
+  // fetch poster + title for each movie in those reviews
   useEffect(() => {
     const uniqueIds = Array.from(new Set(reviews.map((r) => r.movie_id)));
     if (!uniqueIds.length) return;
@@ -89,13 +101,12 @@ export default function LatestReviewsPage() {
     </div>
   );
 
-  if (loading)
-    return <p className="p-4 text-center text-gray-300">Loading reviews…</p>;
+  if (loading) return <p className="p-4 text-center text-gray-300">Loading…</p>;
   if (error) return <p className="p-4 text-center text-red-400">{error}</p>;
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background elements */}
+      {/* Animated bg icons */}
       <div className="absolute inset-0">
         <div className="absolute top-16 left-10 text-yellow-400/20 animate-pulse">
           <Star size={32} />
@@ -112,7 +123,7 @@ export default function LatestReviewsPage() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Page header with Back button */}
+        {/* Header */}
         <header className="mb-6 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <Button
@@ -124,59 +135,59 @@ export default function LatestReviewsPage() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Home
             </Button>
-            <h1 className="text-2xl font-bold text-white">
-              Latest Community Reviews
-            </h1>
+            <h1 className="text-2xl font-bold text-white">My Reviews</h1>
           </div>
         </header>
 
-        <main>
-          {reviews.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 items-stretch">
-              {reviews.map((r) => {
-                const meta = movieMeta[r.movie_id] || { poster: "", title: "" };
-                return (
-                  <div
-                    key={r.id}
-                    onClick={() => navigate(`/movies/${r.movie_id}`)}
-                    className="cursor-pointer h-full flex flex-col"
-                  >
-                    <Card className="flex flex-col h-full backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow p-0">
-                      {meta.poster && (
-                        <div className="relative w-full aspect-[2/3] bg-gray-800">
-                          <img
-                            src={`https://image.tmdb.org/t/p/w300${meta.poster}`}
-                            alt={meta.title}
-                            className="absolute inset-0 w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
+        {/* Reviews Grid */}
+        {reviews.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 items-stretch">
+            {reviews.map((r) => {
+              const meta = movieMeta[r.movie_id] || { poster: "", title: "" };
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => navigate(`/movies/${r.movie_id}`)}
+                  className="cursor-pointer h-full flex flex-col"
+                >
+                  <Card className="relative flex flex-col h-full backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow p-0">
+                    {/* Poster */}
+                    {meta.poster && (
+                      <div className="relative w-full aspect-[2/3] bg-gray-800">
+                        <img
+                          src={`https://image.tmdb.org/t/p/w300${meta.poster}`}
+                          alt={meta.title}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
 
-                      <CardHeader className="p-3 pt-2">
-                        <h3 className="text-sm font-semibold text-white line-clamp-1">
-                          {meta.title}
-                        </h3>
-                        <div className="mt-1 flex justify-between items-center text-xs text-gray-300">
-                          <span>{r.username}</span>
-                          <span>{formatDate(r.created_at)}</span>
-                        </div>
-                        <div className="mt-2">{renderStars(r.rating)}</div>
-                      </CardHeader>
+                    <CardHeader className="p-3 pt-2">
+                      <h3 className="text-sm font-semibold text-white line-clamp-1">
+                        {meta.title}
+                      </h3>
+                      <div className="mt-1 flex justify-between items-center text-xs text-gray-300">
+                        <span>{r.username}</span>
+                        <span>{formatDate(r.created_at)}</span>
+                      </div>
+                      <div className="mt-2">{renderStars(r.rating)}</div>
+                    </CardHeader>
 
-                      <CardContent className="p-3 pt-1 flex-grow overflow-hidden">
-                        <p className="text-xs text-gray-300 line-clamp-3">
-                          {r.comment || "—"}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-center text-gray-300 mt-8">No reviews yet.</p>
-          )}
-        </main>
+                    <CardContent className="p-3 pt-1 flex-grow overflow-hidden">
+                      <p className="text-xs text-gray-300 line-clamp-3">
+                        {r.comment || "—"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-gray-300 mt-8">
+            You haven’t written any reviews yet.
+          </p>
+        )}
       </div>
     </div>
   );
