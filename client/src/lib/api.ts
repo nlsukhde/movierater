@@ -3,8 +3,8 @@ import { supabase } from "./supabaseClient";
 
 
 const api = axios.create({
-  // baseURL: "https://movierater-el26.onrender.com",
-  baseURL: "http://localhost:5000",
+  baseURL: "https://movierater-el26.onrender.com",
+  // baseURL: "http://localhost:5000",
   headers: {
     "Content-Type": "application/json",
   },
