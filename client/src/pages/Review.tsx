@@ -1,4 +1,3 @@
-// MovieDetailPage.tsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -48,12 +47,10 @@ export default function MovieDetailPage() {
   const movieId = Number(id);
   const navigate = useNavigate();
 
-  // Movie state
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Authenticated user ---
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -61,24 +58,20 @@ export default function MovieDetailPage() {
     });
   }, []);
 
-  // Reviews state
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
-  // Rating form state
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [hasReviewed, setHasReviewed] = useState(false);
 
-  // 3.1) Track editing state
   const [editingReviewId, setEditingReviewId] = useState<number | null>(null);
   const [editRating, setEditRating] = useState(0);
   const [editComment, setEditComment] = useState("");
   const [editHoverRating, setEditHoverRating] = useState(0);
 
-  // Fetch movie details from your Flask API
   useEffect(() => {
     if (!movieId) {
       setError("Invalid movie ID");
@@ -92,14 +85,12 @@ export default function MovieDetailPage() {
       .finally(() => setLoading(false));
   }, [movieId]);
 
-  // 3.2) Kick off edit: prefill fields
   const startEditing = (r: Review) => {
     setEditingReviewId(r.id);
     setEditRating(r.rating);
     setEditComment(r.comment);
   };
 
-  // 3.3) Cancel edit
   const cancelEditing = () => {
     setEditingReviewId(null);
     setEditRating(0);
@@ -130,7 +121,6 @@ export default function MovieDetailPage() {
     );
   };
 
-  // 3.4) Save edited review
   const saveEditedReview = async () => {
     if (editingReviewId === null || !currentUser) return;
     const { error: updErr } = await supabase
@@ -150,7 +140,6 @@ export default function MovieDetailPage() {
     }
   };
 
-  // Load reviews from Supabase
   const loadReviews = async () => {
     const { data, error } = await supabase
       .from("reviews")
@@ -173,7 +162,6 @@ export default function MovieDetailPage() {
     }));
     setReviews(mapped);
 
-    // ← new bit:
     if (currentUser) {
       const youReviewed = mapped.some((r) => r.userId === currentUser.id);
       setHasReviewed(youReviewed);
@@ -184,7 +172,6 @@ export default function MovieDetailPage() {
     loadReviews();
   }, [movieId]);
 
-  // Helpers
   const formatDate = (s: string) =>
     new Date(s).toLocaleDateString("en-US", {
       year: "numeric",
@@ -220,6 +207,7 @@ export default function MovieDetailPage() {
     return Number((sum / reviews.length).toFixed(1));
   };
 
+  // Updated renderStars: no hover highlight when not interactive
   const renderStars = (
     rating: number,
     interactive = false,
@@ -228,21 +216,25 @@ export default function MovieDetailPage() {
     const sizeCls = { sm: "w-4 h-4", md: "w-5 h-5", lg: "w-6 h-6" }[size];
     return (
       <div className="flex items-center gap-1">
-        {[...Array(10)].map((_, i) => (
-          <Star
-            key={i}
-            className={`${sizeCls} ${
-              interactive ? "cursor-pointer" : ""
-            } transition-colors ${
-              i < (interactive ? hoverRating || userRating : rating)
-                ? "fill-yellow-400 text-yellow-400"
-                : "text-gray-300 hover:text-yellow-400"
-            }`}
-            onMouseEnter={() => interactive && setHoverRating(i + 1)}
-            onMouseLeave={() => interactive && setHoverRating(0)}
-            onClick={() => interactive && setUserRating(i + 1)}
-          />
-        ))}
+        {[...Array(10)].map((_, i) => {
+          const isFilled =
+            i < (interactive ? hoverRating || userRating : rating);
+          const fillClass = isFilled
+            ? "fill-yellow-400 text-yellow-400"
+            : "text-gray-300";
+          const hoverClass = interactive ? " hover:text-yellow-400" : "";
+          return (
+            <Star
+              key={i}
+              className={`${sizeCls} ${
+                interactive ? "cursor-pointer" : ""
+              } transition-colors ${fillClass}${hoverClass}`}
+              onMouseEnter={() => interactive && setHoverRating(i + 1)}
+              onMouseLeave={() => interactive && setHoverRating(0)}
+              onClick={() => interactive && setUserRating(i + 1)}
+            />
+          );
+        })}
       </div>
     );
   };
@@ -253,7 +245,6 @@ export default function MovieDetailPage() {
     setReviewError(null);
     setReviewMessage(null);
 
-    // 1) Check for an existing review
     const { data: existing, error: existErr } = await supabase
       .from("reviews")
       .select("id")
@@ -267,8 +258,6 @@ export default function MovieDetailPage() {
 
     const isUpdate = (existing ?? []).length > 0;
 
-    // 2) Upsert the review (will INSERT or UPDATE based on the unique constraint)
-
     const payload = [
       {
         movie_id: movieId,
@@ -278,14 +267,7 @@ export default function MovieDetailPage() {
         comment: reviewComment || null,
         helpful: 0,
       },
-    ] as Array<{
-      movie_id: number;
-      user_id: string;
-      username: string;
-      rating: number;
-      comment: string | null;
-      helpful: number;
-    }>;
+    ];
     const { error: upsertErr } = await supabase
       .from("reviews")
       .upsert(payload, { onConflict: "user_id,movie_id" });
@@ -293,7 +275,6 @@ export default function MovieDetailPage() {
     if (upsertErr) {
       setReviewError(upsertErr.message);
     } else {
-      // 3) Show the right message
       setReviewMessage(
         isUpdate
           ? "✅ Your review has been updated!"
