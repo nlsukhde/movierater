@@ -32,25 +32,31 @@ A modern full-stack movie rating application where users can browse movies, subm
 
 ## Features
 
-- **User Authentication**: Sign up, log in, and manage sessions via Supabase Auth
-- **Movie Browsing**: Search and browse movie details powered by the TMDB API
-- **Ratings & Reviews**: Submit and edit your own ratings (1–10 stars) and written reviews
-- **Average Scores**: Community-average ratings displayed in real time
-- **Responsive UI**: Built with React + Vite + TypeScript for snappy, mobile-friendly interactions
-- **Secure Backend**: Python Flask API handles TMDB requests and enforces access with Supabase
+- **User Authentication**: Sign up, log in, and manage sessions via Supabase Auth.
+- **Movie Browsing**: Search and browse movie details powered by the TMDB API.
+- **Ratings & Reviews**: Submit and edit your own ratings (1–10 stars) and written reviews.
+- **Average Scores**: Community-average ratings displayed in real time.
+- **Personalized Recommendations**: Custom recommendation system that analyzes a user’s past ratings and suggests new movies via a `/api/movies/recommendations` endpoint.
+
+  - Powered by TMDB Discover and cached in-memory for performance.
+
+- **Community Reviews**: View latest community reviews with poster images and infinite pagination via a paginated `/api/movies/community/latest_reviews` endpoint.
+- **Responsive UI**: Built with React + Vite + TypeScript for snappy, mobile-friendly interactions.
+- **Secure Backend**: Python Flask API handles TMDB requests, caching, and enforces access with Supabase.
 
 ---
 
 ## Tech Stack
 
-| Layer           | Technology                      |
-| --------------- | ------------------------------- |
-| Frontend        | React, Vite, TypeScript         |
-| Styling         | Tailwind CSS, Shadcn/UI         |
-| Backend API     | Python, Flask, Requests         |
-| Database & Auth | Supabase (PostgreSQL + Auth)    |
-| External APIs   | TMDB (The Movie Database)       |
-| Deployment      | Vercel (frontend), Render (API) |
+| Layer           | Technology                                  |
+| --------------- | ------------------------------------------- |
+| Frontend        | React, Vite, TypeScript                     |
+| Styling         | Tailwind CSS, Shadcn/UI                     |
+| Backend API     | Python, Flask, Requests                     |
+| Caching         | In-memory (Python dict) for trending & recs |
+| Database & Auth | Supabase (PostgreSQL + Auth)                |
+| External APIs   | TMDB (The Movie Database)                   |
+| Deployment      | Vercel (frontend), Render (API)             |
 
 ---
 
@@ -64,11 +70,12 @@ A modern full-stack movie rating application where users can browse movies, subm
        │                                    │
        │ TMDB API                           │
        └────────────> Requests to TMDB <────┘
+  (includes /discover for recommendations)
 ```
 
-1. **Frontend** makes requests to the Flask API (hosted on Render), which in turn fetches data from TMDB.
-2. **Authentication** flows directly between the frontend and Supabase—no custom token handling required.
-3. **User data** (profiles, reviews, ratings) lives in Supabase PostgreSQL tables.
+1. **Frontend** makes requests to the Flask API (hosted on Render) for trending, now-playing, search, recommendations, and community reviews.
+2. **Custom recs** use TMDB Discover with a genre-based profile and in-memory caching.
+3. **Community reviews** fetch metadata server-side and paginate via Supabase `.range()`.
 
 ---
 
@@ -125,7 +132,6 @@ pip install -r requirements.txt
 1. **Initialize your database**: run any migrations or use the Supabase dashboard to create tables:
 
    ```sql
-   -- users (managed by Supabase Auth)
    -- reviews table example:
    create table reviews (
      id uuid primary key default uuid_generate_v4(),
