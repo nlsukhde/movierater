@@ -1,6 +1,6 @@
 # RateMyReel
 
-A modern full-stack movie rating application where users can browse movies, submit ratings and reviews, and view community feedback—all with minimal setup.
+A modern full-stack movie rating application with a custom reccomendation algorithm where users can browse movies, submit ratings and reviews, and view community feedback—all with minimal setup.
 
 **Live Demo:** [https://ratemyreel.vercel.app/](https://ratemyreel.vercel.app/)
 
