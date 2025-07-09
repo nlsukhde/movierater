@@ -9,6 +9,7 @@ import LatestReviewsPage from "./pages/LatestReviewsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MyReviewsPage from "./pages/MyReviewsPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import RecommendationsPage from "./pages/RecommendationsPage";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -48,6 +49,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             </ProtectedRoute>
           }
         />
+        <Route path="/recommendations" element={<RecommendationsPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
