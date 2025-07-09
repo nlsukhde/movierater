@@ -1,73 +1,59 @@
+// src/pages/LatestReviewsPage.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient";
 import api from "@/lib/api";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Star, Film, Play, Camera } from "lucide-react";
+import { ArrowLeft, Star, Film, Play, Camera, ArrowDown } from "lucide-react";
 
-interface ReviewRow {
+interface ReviewWithMeta {
   id: number;
   movie_id: number;
   username: string;
   rating: number;
   comment: string;
   created_at: string;
-}
-
-interface MovieInfo {
   poster_path: string;
   title: string;
 }
 
 export default function LatestReviewsPage() {
   const navigate = useNavigate();
-  const [reviews, setReviews] = useState<ReviewRow[]>([]);
-  const [movieMeta, setMovieMeta] = useState<
-    Record<number, { poster: string; title: string }>
-  >({});
+  const [reviews, setReviews] = useState<ReviewWithMeta[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("id, movie_id, username, rating, comment, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20);
+  const PAGE_SIZE = 10;
 
-      if (error) {
-        console.error("Failed to fetch latest reviews:", error);
-        setError("Could not load reviews.");
-      } else if (data) {
-        setReviews(data as ReviewRow[]);
-      }
-      setLoading(false);
-    })();
-  }, []);
-
-  useEffect(() => {
-    const uniqueIds = Array.from(new Set(reviews.map((r) => r.movie_id)));
-    if (!uniqueIds.length) return;
-
-    (async () => {
-      const entries = await Promise.all(
-        uniqueIds.map(async (mid) => {
-          try {
-            const res = await api.get<MovieInfo>(`/api/movies/${mid}`);
-            return [
-              mid,
-              { poster: res.data.poster_path, title: res.data.title },
-            ] as const;
-          } catch {
-            return [mid, { poster: "", title: "" }] as const;
-          }
-        })
+  const loadPage = async (pageNum: number) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    try {
+      const res = await api.get<{ reviews: ReviewWithMeta[] }>(
+        "/api/movies/community/latest_reviews",
+        { params: { page: pageNum, limit: PAGE_SIZE } }
       );
-      setMovieMeta(Object.fromEntries(entries));
-    })();
-  }, [reviews]);
+      const fetched = res.data.reviews;
+      setReviews((prev) => (pageNum === 1 ? fetched : [...prev, ...fetched]));
+      setHasMore(fetched.length === PAGE_SIZE);
+      setPage(pageNum);
+    } catch {
+      setError("Could not load latest community reviews.");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPage(1);
+  }, []);
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString("en-US", {
@@ -95,7 +81,7 @@ export default function LatestReviewsPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Animated background elements */}
+      {/* Animated background */}
       <div className="absolute inset-0">
         <div className="absolute top-16 left-10 text-yellow-400/20 animate-pulse">
           <Star size={32} />
@@ -112,7 +98,7 @@ export default function LatestReviewsPage() {
       </div>
 
       <div className="relative z-10 container mx-auto px-4 py-8">
-        {/* Page header with Back button */}
+        {/* Header */}
         <header className="mb-6 backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <Button
@@ -130,23 +116,23 @@ export default function LatestReviewsPage() {
           </div>
         </header>
 
+        {/* Grid */}
         <main>
           {reviews.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 items-stretch">
-              {reviews.map((r) => {
-                const meta = movieMeta[r.movie_id] || { poster: "", title: "" };
-                return (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                {reviews.map((r) => (
                   <div
                     key={r.id}
                     onClick={() => navigate(`/movies/${r.movie_id}`)}
                     className="cursor-pointer h-full flex flex-col"
                   >
                     <Card className="flex flex-col h-full backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow p-0">
-                      {meta.poster && (
+                      {r.poster_path && (
                         <div className="relative w-full aspect-[2/3] bg-gray-800">
                           <img
-                            src={`https://image.tmdb.org/t/p/w300${meta.poster}`}
-                            alt={meta.title}
+                            src={`https://image.tmdb.org/t/p/w300${r.poster_path}`}
+                            alt={r.title}
                             className="absolute inset-0 w-full h-full object-cover"
                           />
                         </div>
@@ -154,7 +140,7 @@ export default function LatestReviewsPage() {
 
                       <CardHeader className="p-3 pt-2">
                         <h3 className="text-sm font-semibold text-white line-clamp-1">
-                          {meta.title}
+                          {r.title}
                         </h3>
                         <div className="mt-1 flex justify-between items-center text-xs text-gray-300">
                           <span>{r.username}</span>
@@ -170,9 +156,21 @@ export default function LatestReviewsPage() {
                       </CardContent>
                     </Card>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="flex justify-center mt-6">
+                  <Button
+                    onClick={() => loadPage(page + 1)}
+                    disabled={loadingMore}
+                  >
+                    <ArrowDown className="w-4 h-4 mr-2" />
+                    {loadingMore ? "Loading…" : "Load More"}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-center text-gray-300 mt-8">No reviews yet.</p>
           )}
